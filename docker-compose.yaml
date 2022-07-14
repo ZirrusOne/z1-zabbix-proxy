@@ -1,0 +1,129 @@
+version: '3.5'
+services:
+ zabbix-proxy-sqlite3:
+  restart: unless-stopped
+  image: zabbix/zabbix-proxy-sqlite3:ubuntu-6.0-latest
+  profiles:
+   - all
+  ports:
+   - "10061:10051"
+  volumes:
+   - /etc/localtime:/etc/localtime:ro
+   - ./zbx_env/usr/lib/zabbix/externalscripts:/usr/lib/zabbix/externalscripts:ro
+   - ./zbx_env/var/lib/zabbix/modules:/var/lib/zabbix/modules:ro
+   - ./zbx_env/var/lib/zabbix/enc:/var/lib/zabbix/enc:ro
+   - ./zbx_env/var/lib/zabbix/ssh_keys:/var/lib/zabbix/ssh_keys:ro
+   - ./zbx_env/var/lib/zabbix/mibs:/var/lib/zabbix/mibs:ro
+   - snmptraps:/var/lib/zabbix/snmptraps:rw
+  ulimits:
+   nproc: 65535
+   nofile:
+    soft: 20000
+    hard: 40000
+  deploy:
+   resources:
+    limits:
+      cpus: '0.70'
+      memory: 512M
+    reservations:
+      memory: 256M
+  env_file:
+   - ./env_vars/.env_prx
+   - ./env_vars/.env_prx_sqlite3
+  depends_on:
+   - zabbix-java-gateway
+   - zabbix-snmptraps
+  networks:
+   zbx_net_backend:
+    aliases:
+     - zabbix-proxy-sqlite3
+     - zabbix-proxy-ubuntu-sqlite3
+     - zabbix-proxy-sqlite3-ubuntu
+   zbx_net_frontend:
+  stop_grace_period: 30s
+  labels:
+   com.zabbix.description: "Zabbix proxy with SQLite3 database support"
+   com.zabbix.company: "Zabbix LLC"
+   com.zabbix.component: "zabbix-proxy"
+   com.zabbix.dbtype: "sqlite3"
+   com.zabbix.os: "ubuntu"
+
+ zabbix-java-gateway:
+  restart: unless-stopped
+  image: zabbix/zabbix-java-gateway:ubuntu-6.0-latest
+  profiles:
+   - full
+   - all
+  ports:
+   - "10052:10052"
+  deploy:
+   resources:
+    limits:
+      cpus: '0.5'
+      memory: 512M
+    reservations:
+      memory: 256M
+  env_file:
+   - ./env_vars/.env_java
+  networks:
+   zbx_net_backend:
+    aliases:
+     - zabbix-java-gateway
+     - zabbix-java-gateway-ubuntu
+  stop_grace_period: 5s
+  labels:
+   com.zabbix.description: "Zabbix Java Gateway"
+   com.zabbix.company: "Zabbix LLC"
+   com.zabbix.component: "java-gateway"
+   com.zabbix.os: "ubuntu"
+
+ zabbix-snmptraps:
+  restart: unless-stopped
+  image: zabbix/zabbix-snmptraps:ubuntu-6.0-latest
+  profiles:
+   - full
+   - all
+  ports:
+   - "162:1162/udp"
+  volumes:
+   - snmptraps:/var/lib/zabbix/snmptraps:rw
+  deploy:
+   resources:
+    limits:
+      cpus: '0.5'
+      memory: 256M
+    reservations:
+      memory: 128M
+  networks:
+   zbx_net_frontend:
+    aliases:
+     - zabbix-snmptraps
+   zbx_net_backend:
+  stop_grace_period: 5s
+  labels:
+   com.zabbix.description: "Zabbix snmptraps"
+   com.zabbix.company: "Zabbix LLC"
+   com.zabbix.component: "snmptraps"
+   com.zabbix.os: "ubuntu"
+
+volumes:
+  snmptraps:
+
+networks:
+  zbx_net_frontend:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+      - subnet: 172.16.238.0/24
+  zbx_net_backend:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    internal: true
+    ipam:
+      driver: default
+      config:
+      - subnet: 172.16.239.0/24
