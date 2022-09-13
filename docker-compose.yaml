@@ -3,6 +3,7 @@ services:
  zabbix-proxy-sqlite3:
   restart: unless-stopped
   image: zabbix/zabbix-proxy-sqlite3:ubuntu-6.0-latest
+  container_name: zabbix-proxy
   profiles:
    - all
   ports:
